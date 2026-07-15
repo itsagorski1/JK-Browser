@@ -13,7 +13,7 @@ import sys
 from PyQt6.QtCore import QUrl
 from PyQt6.QtGui import QAction
 from PyQt6.QtWebEngineWidgets import QWebEngineView
-from PyQt6.QtWidgets import QApplication, QLineEdit, QMainWindow, QToolBar
+from PyQt6.QtWidgets import QApplication, QLineEdit, QMainWindow, QStyle, QToolBar
 
 import tlds
 import qdarktheme
@@ -25,6 +25,7 @@ class MainWindow(QMainWindow):
     # Constructor of this class
     def __init__(self):
         super(MainWindow, self).__init__()
+        self.setWindowTitle("JK-Browser")
         # To provide a widget for viewing and editing web documents:
         self.browser = QWebEngineView()
         # To set default browser homepage as google homepage:
@@ -44,12 +45,20 @@ class MainWindow(QMainWindow):
         self.addToolBar(navbar)
 
         # To add back button within navigation bar:
-        back_btn = QAction('⮜', self)
+        back_btn = QAction(
+            self.style().standardIcon(QStyle.StandardPixmap.SP_ArrowBack),
+            'Back',
+            self,
+        )
         back_btn.triggered.connect(self.browser.back)
         navbar.addAction(back_btn)
 
         # To add forward button within navigation bar:
-        forward_btn = QAction('⮞', self)
+        forward_btn = QAction(
+            self.style().standardIcon(QStyle.StandardPixmap.SP_ArrowForward),
+            'Forward',
+            self,
+        )
         forward_btn.triggered.connect(self.browser.forward)
         navbar.addAction(forward_btn)
 
@@ -91,10 +100,10 @@ class MainWindow(QMainWindow):
 
 # To call constructor of the C++ class QApplication:
 # Here, sys.argv is used to initialize the QT application
+QApplication.setApplicationName("JK-Browser")
+QApplication.setApplicationDisplayName("JK-Browser")
 app = QApplication(sys.argv)
 qdarktheme.setup_theme()
-# To specify name of the browser:
-QApplication.setApplicationName("JK Browser")
 # To create an object of MainWindow class defined above:
 window = MainWindow()
 # To run the main event loop and wait until exit() is called:
