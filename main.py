@@ -8,11 +8,13 @@
  @author KIRIN GODA/BLOCK120
  @license GNU-GPL-3.0
 """
-# Import necessary libraries
-from PyQt5.QtWidgets import *
-from PyQt5.QtCore import *
-from PyQt5.QtWebEngineWidgets import *
 import sys
+
+from PyQt6.QtCore import QUrl
+from PyQt6.QtGui import QAction
+from PyQt6.QtWebEngineWidgets import QWebEngineView
+from PyQt6.QtWidgets import QApplication, QLineEdit, QMainWindow, QToolBar
+
 import tlds
 import qdarktheme
 
