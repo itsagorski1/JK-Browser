@@ -1,3 +1,11 @@
+# /// script
+# dependencies = [
+#     "PyQt6",
+#     "pyqt6-webengine",
+#     "psutil",
+#     "pyqtdarktheme",
+# ]
+# ///
 """
  * COPYRIGHT (c) 2026 JKSW CO. LICENSED UNDER THE GNU GENERAL PUBLIC LICENSE VERSION 3.0
  @version 0.1
@@ -8,10 +16,12 @@
  @author KIRIN GODA/BLOCK120
  @license GNU-GPL-3.0
 """
-import sys
+import sys,os
+
+os.environ["QTWEBENGINE_REMOTE_DEBUGGING"] = "9222"
 
 from PyQt6.QtCore import QUrl
-from PyQt6.QtGui import QAction
+from PyQt6.QtGui import QAction, QKeySequence, QShortcut
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 from PyQt6.QtWidgets import QApplication, QLineEdit, QMainWindow, QStyle, QToolBar
 
@@ -22,12 +32,18 @@ import qdarktheme
 class MainWindow(QMainWindow):
     confFile = open("browser.conf", 'rt')
     confText = confFile.read()
+    uvLockFile = open("uv.lock", 'rt')
+    uvLockText = uvLockFile.read()
     # Constructor of this class
     def __init__(self):
         super(MainWindow, self).__init__()
         self.setWindowTitle("JK-Browser")
         # To provide a widget for viewing and editing web documents:
         self.browser = QWebEngineView()
+        self.devtools_window = None
+        # Bind F12 key to toggle Developer Tools panel
+        self.devtools_shortcut = QShortcut(QKeySequence("F12"), self)
+        self.devtools_shortcut.activated.connect(self.toggle_developer_tools)
         # To set default browser homepage as google homepage:
         if "searchEngine = 'google'" in self.confText or "searchEngine = " not in self.confText:
             self.browser.setUrl(QUrl("http://www.google.com"))
@@ -74,6 +90,12 @@ class MainWindow(QMainWindow):
         self.browser.urlChanged.connect(self.update_url)
 
     def checkIfURL(self, url):
+        if "jk-browser://" in url or "jk-b://" in url:
+            if url == "jk-browser://exit" or url == "jk-b://exit":
+                QApplication.quit()
+                return "quit"
+            elif url == "jk-browser://version" or url == "jk-b://version":
+                return "version"
         if " " in url or "." not in url:
             if "searchEngine = 'google'" in self.confText or "searchEngine = " not in self.confText:
                 return f'https://google.com/search?q={url}'
@@ -82,12 +104,41 @@ class MainWindow(QMainWindow):
         elif " " not in url and "." in url:
             return url
 
-
     # To navigate to desired URL specified within URL bar:
     def open_url(self):
         url = self.url_bar.text()
         urlValid = self.checkIfURL(url)
         url = urlValid
+        if url == "exit":
+            return
+        elif url == "version":
+            version = ""
+            if self.uvLockText.find("version = ") != -1:
+                version = self.uvLockText[self.uvLockText.find("version = ")+10:self.uvLockText.find("revision")-1]
+            else:
+                version = "version not found"
+            self.browser.setHtml(f"""
+                <!DOCTYPE html>
+                <html>
+                    <head>
+                        <title>Version</title>
+                        <style>
+                            * {{
+                                font-family: monospace;
+                                background-color: #000000;
+                                color: #ffffff
+                            }}
+                        </style>
+                    </head>
+                    <body>
+                        <p>
+                            {version}<br>
+                            COPYRIGHT (c) 2026 JKSW Co. LICENSED UNDER THE GNU GENERAL PUBLIC LICENSE v3.0
+                        </p>
+                    </body>
+                </html>
+                """)
+            return
         if "http://" not in str(url) and "https://" not in str(url):
             self.browser.setUrl(QUrl("http://" + str(url)))
         else:
@@ -96,6 +147,23 @@ class MainWindow(QMainWindow):
     # To update the URL bar contents when navigated from one page to another:
     def update_url(self, q):
         self.url_bar.setText(q.toString())
+
+    def toggle_developer_tools(self):
+        if self.devtools_window and self.devtools_window.isVisible():
+            self.devtools_window.close()
+            return
+
+        # Create or update inspector window targeting the active page profile
+        self.devtools_window = QMainWindow(self)
+        self.devtools_window.setWindowTitle("Developer Tools")
+        self.devtools_window.resize(900, 600)
+
+        inspector_view = QWebEngineView()
+        self.devtools_window.setCentralWidget(inspector_view)
+
+        # Link current page to the inspection engine
+        self.browser.page().setDevToolsPage(inspector_view.page())
+        self.devtools_window.show()
 
 
 # To call constructor of the C++ class QApplication:
