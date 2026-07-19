@@ -16,14 +16,14 @@
  @author KIRIN GODA/BLOCK120
  @license GNU-GPL-3.0
 """
-import sys,os
+import sys, os
 
 os.environ["QTWEBENGINE_REMOTE_DEBUGGING"] = "9222"
 
 from PyQt6.QtCore import QUrl
 from PyQt6.QtGui import QAction, QKeySequence, QShortcut
 from PyQt6.QtWebEngineWidgets import QWebEngineView
-from PyQt6.QtWidgets import QApplication, QLineEdit, QMainWindow, QStyle, QToolBar
+from PyQt6.QtWidgets import QApplication, QLineEdit, QMainWindow, QStyle, QToolBar, QTabWidget, QWidget, QVBoxLayout, QLabel, QPushButton
 
 import tlds
 import qdarktheme
@@ -44,13 +44,27 @@ class MainWindow(QMainWindow):
         # Bind F12 key to toggle Developer Tools panel
         self.devtools_shortcut = QShortcut(QKeySequence("F12"), self)
         self.devtools_shortcut.activated.connect(self.toggle_developer_tools)
+        # tabs
+        self.totalTabNum = 0
+        central_widget = QWidget()
+        self.setCentralWidget(central_widget)
+        mainLayout = QVBoxLayout(central_widget)
+
+        self.newTabBtn = QPushButton("+")
+        self.newTabBtn.clicked.connect(self.addNewDynamicTab)
+        mainLayout.addWidget(self.newTabBtn)
+
+        self.tabs = QTabWidget()
+        self.tabs.setTabsClosable(True)
+        self.tabs.tabCloseRequested.connect(self.closeTab)
+        mainLayout.addWidget(self.tabs)
+        self.addNewDynamicTab()
         # To set default browser homepage as google homepage:
         if "searchEngine = 'google'" in self.confText or "searchEngine = " not in self.confText:
             self.browser.setUrl(QUrl("http://www.google.com"))
         elif "searchEngine = 'yahoo'" in self.confText:
             self.browser.setUrl(QUrl("http://yahoo.com"))
         # To set browser as central widget of main window:
-        self.setCentralWidget(self.browser)
         # To open browser in a maximized window:
         self.showMaximized()
 
@@ -88,6 +102,20 @@ class MainWindow(QMainWindow):
         self.url_bar.returnPressed.connect(self.open_url)
         navbar.addWidget(self.url_bar)
         self.browser.urlChanged.connect(self.update_url)
+
+    def addNewDynamicTab(self):
+        self.totalTabNum += 1
+        pageWidget = QWidget()
+        pageLayout = QVBoxLayout(pageWidget)
+        pageLayout.addStretch()
+        index = self.tabs.addTab(pageWidget, f'tab {self.totalTabNum}')
+        self.tabs.setCurrentIndex(index)
+
+    def closeTab(self, index):
+        tabToDelete = self.tabs.widget(index)
+        if tabToDelete is not None:
+            self.tabs.removeTab(index)
+            tabToDelete.deleteLater()
 
     def checkIfURL(self, url):
         if "jk-browser://" in url or "jk-b://" in url:
