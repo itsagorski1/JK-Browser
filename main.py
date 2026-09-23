@@ -24,45 +24,50 @@ from PyQt6.QtCore import QUrl
 from PyQt6.QtGui import QAction, QKeySequence, QShortcut
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 from PyQt6.QtWidgets import QApplication, QLineEdit, QMainWindow, QStyle, QToolBar, QTabWidget, QWidget, QVBoxLayout, QLabel, QPushButton
+from pathlib import Path
+from PyQt6.QtCore import QObject, pyqtSlot
+from PyQt6.QtWebChannel import QWebChannel
 
 import tlds
 import qdarktheme
+from settings_bridge import SettingsBridge
 
 # Create a main window class
 class MainWindow(QMainWindow):
-    confFile = open("browser.conf", 'rt')
-    confText = confFile.read()
-    uvLockFile = open("uv.lock", 'rt')
-    uvLockText = uvLockFile.read()
+    def setupBrowser(self):
+        confFile = open("browser.conf", 'rt')
+        confText = confFile.read()
+        uvLockFile = open("uv.lock", 'rt')
+        uvLockText = uvLockFile.read()
+
+        if "searchEngine = 'Google (google.com)'" in confText or "searchEngine = " not in confText:
+            self.defaultSearchEngine = "google"
+            self.defaultEngineSearchUrl = "google.com/search?q="
+        elif "searchEngine = 'Yahoo (yahoo.com)" in confText:
+            self.defaultSearchEngine = "yahoo"
+            self.defaultEngineSearchUrl = 'search.yahoo.com/search?p='
+        self.confText = confText
+        self.uvLockText = uvLockText
     # Constructor of this class
     def __init__(self):
         super(MainWindow, self).__init__()
         self.setWindowTitle("JK-Browser")
+        self.setupBrowser()
         # To provide a widget for viewing and editing web documents:
         self.browser = QWebEngineView()
         self.devtools_window = None
         # Bind F12 key to toggle Developer Tools panel
         self.devtools_shortcut = QShortcut(QKeySequence("F12"), self)
         self.devtools_shortcut.activated.connect(self.toggle_developer_tools)
-        # tabs
-        self.totalTabNum = 0
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
         mainLayout = QVBoxLayout(central_widget)
+        mainLayout.addWidget(self.browser)
 
-        self.newTabBtn = QPushButton("+")
-        self.newTabBtn.clicked.connect(self.addNewDynamicTab)
-        mainLayout.addWidget(self.newTabBtn)
-
-        self.tabs = QTabWidget()
-        self.tabs.setTabsClosable(True)
-        self.tabs.tabCloseRequested.connect(self.closeTab)
-        mainLayout.addWidget(self.tabs)
-        self.addNewDynamicTab()
         # To set default browser homepage as google homepage:
-        if "searchEngine = 'google'" in self.confText or "searchEngine = " not in self.confText:
+        if self.defaultSearchEngine == "google":
             self.browser.setUrl(QUrl("http://www.google.com"))
-        elif "searchEngine = 'yahoo'" in self.confText:
+        elif self.defaultSearchEngine == "yahoo":
             self.browser.setUrl(QUrl("http://yahoo.com"))
         # To set browser as central widget of main window:
         # To open browser in a maximized window:
@@ -103,20 +108,6 @@ class MainWindow(QMainWindow):
         navbar.addWidget(self.url_bar)
         self.browser.urlChanged.connect(self.update_url)
 
-    def addNewDynamicTab(self):
-        self.totalTabNum += 1
-        pageWidget = QWidget()
-        pageLayout = QVBoxLayout(pageWidget)
-        pageLayout.addStretch()
-        index = self.tabs.addTab(pageWidget, f'tab {self.totalTabNum}')
-        self.tabs.setCurrentIndex(index)
-
-    def closeTab(self, index):
-        tabToDelete = self.tabs.widget(index)
-        if tabToDelete is not None:
-            self.tabs.removeTab(index)
-            tabToDelete.deleteLater()
-
     def checkIfURL(self, url):
         if "jk-browser://" in url or "jk-b://" in url:
             if url == "jk-browser://exit" or url == "jk-b://exit":
@@ -124,18 +115,17 @@ class MainWindow(QMainWindow):
                 return "quit"
             elif url == "jk-browser://version" or url == "jk-b://version":
                 return "version"
+            elif url == "jk-browser://settings" or url == "jk-b://settings":
+                return "settings"
         if " " in url or "." not in url:
-            if "searchEngine = 'google'" in self.confText or "searchEngine = " not in self.confText:
-                return f'https://google.com/search?q={url}'
-            elif "searchEngine = 'yahoo'" in self.confText:
-                return f'https://search.yahoo.com/search?p={url}'
+            return self.defaultEngineSearchUrl + url
         elif " " not in url and "." in url:
             return url
 
     # To navigate to desired URL specified within URL bar:
     def open_url(self):
         url = self.url_bar.text()
-        urlValid = self.checkIfURL(url)
+        urlValid = str(self.checkIfURL(url))
         url = urlValid
         if url == "exit":
             return
@@ -167,10 +157,32 @@ class MainWindow(QMainWindow):
                 </html>
                 """)
             return
-        if "http://" not in str(url) and "https://" not in str(url):
-            self.browser.setUrl(QUrl("http://" + str(url)))
+        elif url == "settings":
+            self.showSettings()
+        if "http://" not in url and "https://" not in url:
+            self.browser.setUrl(QUrl("http://" + url))
         else:
             self.browser.setUrl(QUrl(url))
+
+    def showSettings(self):
+        if not hasattr(self, "settings_window"):
+            self.settings_window = QMainWindow(self)
+            self.settings_window.setWindowTitle("Settings")
+            self.settings_window.resize(600, 400)
+
+            self.settings_view = QWebEngineView(self.settings_window)
+            self.settings_window.setCentralWidget(self.settings_view)
+
+            self.settings_bridge = SettingsBridge(self)
+            self.settings_channel = QWebChannel(self.settings_view.page())
+            self.settings_channel.registerObject("settings", self.settings_bridge)
+
+        settings_path = Path(__file__).resolve().parent / "settings.html"
+        self.settings_view.setUrl(QUrl.fromLocalFile(str(settings_path)))
+
+        self.settings_window.show()
+        self.settings_window.raise_()
+        self.settings_window.activateWindow()
 
     # To update the URL bar contents when navigated from one page to another:
     def update_url(self, q):
