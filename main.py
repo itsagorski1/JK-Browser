@@ -89,9 +89,9 @@ class MainWindow(QMainWindow):
 
         # To set default browser homepage as google homepage:
         if self.defaultSearchEngine == "google":
-            self.browser.setUrl(QUrl("http://www.google.com"))
+            self.browser.setUrl(QUrl("https://www.google.com"))
         elif self.defaultSearchEngine == "yahoo":
-            self.browser.setUrl(QUrl("http://yahoo.com"))
+            self.browser.setUrl(QUrl("https://yahoo.com"))
         # To set browser as central widget of main window:
         # To open browser in a maximized window:
         self.showMaximized()
@@ -185,7 +185,7 @@ class MainWindow(QMainWindow):
                 """)
             return
         if "http://" not in url and "https://" not in url:
-            self.browser.setUrl(QUrl("http://" + url))
+            self.browser.setUrl(QUrl("https://" + url))
         else:
             self.browser.setUrl(QUrl(url))
 
